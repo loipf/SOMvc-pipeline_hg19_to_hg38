@@ -1,0 +1,30 @@
+### data directories
+work
+data
+results
+
+### nextflow based files
+.nextflow*
+*.log
+
+### other file formats
+*.pdf
+*.png
+*.html
+
+.git
+.Rhistory
+
+
+
+
+
+
+
+
+
+
+
+
+
+
