@@ -13,6 +13,11 @@ nextflow.enable.dsl=2
 
 include { 
 	INDEX_REFERENCE;
+	CREATE_BWA_INDEX;
+	BAM_TO_FASTQ_PREPROCESS as BAM_TO_FASTQ_PREPROCESS_NORMAL;
+	BAM_TO_FASTQ_PREPROCESS as BAM_TO_FASTQ_PREPROCESS_TUMOR;
+	MAPPING_BWA as MAPPING_BWA_NORMAL;
+	MAPPING_BWA as MAPPING_BWA_TUMOR;
 	SOMVC_LOFREQ;
 	SOMVC_MUTECT2;
 	SOMVC_STRELKA;
@@ -72,31 +77,50 @@ workflow {
 	channel_sample_match = Channel
 			.fromPath(params.sample_match_file)
 			.splitCsv(header:true)
-			.map{ row -> tuple(row.sample_id, row.normal_file, row.tumor_file, row.normal_file+".bai", row.tumor_file+".bai" ) }
-			//.map{ row -> tuple(row.sample_id, tuple(row.normal_file, row.tumor_file)) }
+			.map{ row -> tuple(row.sample_id, row.normal_file, row.tumor_file) }
 			.ifEmpty { error "cannot read in sample_match_file correctly: ${params.sample_match_file}" }
 			.take( params.dev_samples )  // only consider a few files for debugging
 	//channel_sample_match.view()
 
+	// preprocessing
 	INDEX_REFERENCE(params.reference_genome, params.bed_file)
+	CREATE_BWA_INDEX(params.reference_genome)
 
-	SOMVC_LOFREQ(channel_sample_match, INDEX_REFERENCE.out.reference_genome, INDEX_REFERENCE.out.bed_file, params.num_threads)
-	SOMVC_MUTECT2(channel_sample_match, INDEX_REFERENCE.out.reference_genome, INDEX_REFERENCE.out.bed_file, params.num_threads)
-	SOMVC_STRELKA(channel_sample_match, INDEX_REFERENCE.out.reference_genome, INDEX_REFERENCE.out.bed_file, params.num_threads)
-	SOMVC_VARDICT(channel_sample_match, INDEX_REFERENCE.out.reference_genome, INDEX_REFERENCE.out.bed_file, params.num_threads)
+	// mapping
+	BAM_TO_FASTQ_PREPROCESS_NORMAL(channel_sample_match.map{ it -> tuple(it[0], it[1])}, params.num_threads)
+	MAPPING_BWA_NORMAL(BAM_TO_FASTQ_PREPROCESS_NORMAL.out.reads_prepro, params.num_threads, INDEX_REFERENCE.out.reference_genome, CREATE_BWA_INDEX.out.bwa_index.collect())
+	
+	BAM_TO_FASTQ_PREPROCESS_TUMOR(channel_sample_match.map{ it -> tuple(it[0], it[2])}, params.num_threads)
+	MAPPING_BWA_TUMOR(BAM_TO_FASTQ_PREPROCESS_TUMOR.out.reads_prepro, params.num_threads, INDEX_REFERENCE.out.reference_genome, CREATE_BWA_INDEX.out.bwa_index.collect())
+	
+	
+	//tumor_reads = BAM_TO_FASTQ_PREPROCESS(channel_sample_match.map{ it -> tuple(it[0], it[2])}, params.num_threads)
+	//channel_tumor_reads = tumor_reads.out.reads_prepro.map{ it -> tuple(it[0], it[1]) }
+	//tumor_reads_mapped = MAPPING_BWA(channel_tumor_reads, params.num_threads, INDEX_REFERENCE.out.reference_genome, CREATE_BWA_INDEX.out.bwa_index.collect())
 
-	channel_all_vc = SOMVC_LOFREQ.out.lofreq_output
-			.join(SOMVC_MUTECT2.out.mutect2_output, by: 0)
-			.join(SOMVC_STRELKA.out.strelka_output, by: 0)
-			.join(SOMVC_VARDICT.out.vardict_output, by: 0)
-	SOMATIC_COMBINER(channel_all_vc)
+	channel_sample_match_mapped = MAPPING_BWA_NORMAL.out.reads_mapped.join(MAPPING_BWA_TUMOR.out.reads_mapped).map{ it -> tuple(it[0], it[2], it[1], id[3])}
+	channel_sample_match_mapped.view()
+
+	//DEEPTOOLS_ANALYSIS(mapping_bwa_out.reads_mapped.collect(), mapping_bwa_out.reads_mapped_index.collect(), params.num_threads)
+
+
+	// variant calling
+	//SOMVC_LOFREQ(channel_sample_match, INDEX_REFERENCE.out.reference_genome, INDEX_REFERENCE.out.bed_file, params.num_threads)
+	//SOMVC_MUTECT2(channel_sample_match, INDEX_REFERENCE.out.reference_genome, INDEX_REFERENCE.out.bed_file, params.num_threads)
+	//SOMVC_STRELKA(channel_sample_match, INDEX_REFERENCE.out.reference_genome, INDEX_REFERENCE.out.bed_file, params.num_threads)
+	//SOMVC_VARDICT(channel_sample_match, INDEX_REFERENCE.out.reference_genome, INDEX_REFERENCE.out.bed_file, params.num_threads)
+
+	//channel_all_vc = SOMVC_LOFREQ.out.lofreq_output
+	//		.join(SOMVC_MUTECT2.out.mutect2_output, by: 0)
+	//		.join(SOMVC_STRELKA.out.strelka_output, by: 0)
+	//		.join(SOMVC_VARDICT.out.vardict_output, by: 0)
+	//SOMATIC_COMBINER(channel_all_vc)
 	
-	VARIANT_CALLING_STATS(SOMATIC_COMBINER.out.somatic_combiner_vcf, params.num_threads); 
-	CONPAIR_CONTAMINATION(channel_sample_match, INDEX_REFERENCE.out.reference_genome)
+	//VARIANT_CALLING_STATS(SOMATIC_COMBINER.out.somatic_combiner_vcf, params.num_threads); 
+	//CONPAIR_CONTAMINATION(channel_sample_match, INDEX_REFERENCE.out.reference_genome)
 	
-	MERGE_VCF(SOMATIC_COMBINER.out.somatic_combiner_vcf.collect{[it[1],it[2]]}, params.num_threads) 
-	VARIANT_ANNOTATION(MERGE_VCF.out.vcf_all, params.num_threads);
-	MULTIQC_VCF(VARIANT_CALLING_STATS.out.vcf_stats.collect(), CONPAIR_CONTAMINATION.out.conpair_info.collect())
+	//MERGE_VCF(SOMATIC_COMBINER.out.somatic_combiner_vcf.collect{[it[1],it[2]]}, params.num_threads) 
+	//MULTIQC_VCF(VARIANT_CALLING_STATS.out.vcf_stats.collect(), CONPAIR_CONTAMINATION.out.conpair_info.collect())
 
 }
 

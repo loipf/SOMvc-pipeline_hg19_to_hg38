@@ -19,8 +19,12 @@ RUN conda install \
 		samtools==1.12.0 \
 		bedtools==2.30.0 \
 		vt==2015.11.10
-RUN conda install -y numpy==1.16.5 scipy==1.2.1
+RUN conda install -y numpy scipy
 RUN apt install -y r-base 
+
+RUN conda install bwa==0.7.17 
+RUN conda install cutadapt==1.18
+
 
 ### download bcftools and set up - with conda package it leads to conflicts
 RUN wget https://github.com/samtools/bcftools/releases/download/1.14/bcftools-1.14.tar.bz2

@@ -32,6 +32,33 @@ process INDEX_REFERENCE {
 }
 
 
+
+process BAM_TO_FASTQ_PREPROCESS { 
+	tag "$sample_id"
+	cache false
+	
+	input:
+		tuple val(sample_id), path(bam_file)
+		val num_threads
+
+	output:
+		tuple val(sample_id), path("${sample_id}_prepro_1.fastq.gz"), path("${sample_id}_prepro_2.fastq.gz"), emit: reads_prepro
+		path "${sample_id}_cutadapt_output.txt", emit: cutadapt
+
+	shell:
+	'''
+	
+	### extract reads from bam files
+	samtools sort -@ !{num_threads} -n -o sorted_n.bam !{bam_file} 
+	bedtools bamtofastq -i sorted_n.bam -fq !{sample_id}_reads_1.fastq -fq2 !{sample_id}_reads_2.fastq
+
+	cutadapt --max-n 0.1 --discard-trimmed --pair-filter=any --minimum-length 10 -o !{sample_id}_prepro_1.fastq.gz -p !{sample_id}_prepro_2.fastq.gz !{sample_id}_reads_1.fastq !{sample_id}_reads_2.fastq > !{sample_id}_cutadapt_output.txt
+
+	'''
+}
+
+
+
 process CREATE_BWA_INDEX { 
 	publishDir "$params.data_dir/bwa_index", mode: "copy"
 
@@ -49,10 +76,11 @@ process CREATE_BWA_INDEX {
 
 
 
+
 process MAPPING_BWA { 
 	tag "$sample_id"
 	publishDir "$params.data_dir/reads_mapped", mode: 'copy', saveAs: { filename -> "${sample_id}/$filename" }
-	cache false
+	//cache false
 
 	input:
 		tuple val(sample_id), path(reads_prepro) 
@@ -62,8 +90,7 @@ process MAPPING_BWA {
 
 
 	output:
-		path "${sample_id}.bam", emit: reads_mapped
-		path "${sample_id}.bam.bai", emit: reads_mapped_index
+		tuple val(sample_id), path("${sample_id}.bam"), path("${sample_id}.bam.bai"), emit: reads_mapped
 		path "*", emit: all
 
 
@@ -81,56 +108,6 @@ process MAPPING_BWA {
 
 	'''
 }
-
-
-
-
-process BAM_TO_FASTQ { 
-	tag "$sample_id"
-	cache false
-	
-	input:
-		path reference_genome
-		path bed_file
-		val num_threads
-
-	output:
-		tuple path("*.fa"), path("*.fa.fai"), path("*.dict"), emit: reference_genome
-		tuple path("*.bed_sorted.gz"), path("*.bed_sorted.gz.tbi"), emit: bed_file
-
-	shell:
-	'''
-	
-	
-	### map again on 38
-	samtools sort -@ !{num_threads} -n -o sorted_n.bam !{input_bam} 
-	bedtools bamtofastq -i sorted_n.bam -fq reads_1.fastq -fq2 reads_2.fastq
-
-	'''
-}
-
-
-
-process PREPROCESS_READS { 
-	tag "$sample_id"
-	cache false
-
-	input:
-		tuple val(sample_id), path(reads) 
-		val num_threads
-
-	output:
-		tuple val(sample_id), path("${sample_id}_prepro_1.fastq.gz"), path("${sample_id}_prepro_2.fastq.gz"), emit: reads_prepro
-		path "${sample_id}_cutadapt_output.txt", emit: cutadapt
-
-	shell:
-	'''
-
-	cutadapt --cores=!{num_threads} --max-n 0.1 --discard-trimmed --pair-filter=any --minimum-length 10 -o !{sample_id}_prepro_1.fastq.gz -p !{sample_id}_prepro_2.fastq.gz !{sample_id}_raw_reads_connected_1.fastq.gz !{sample_id}_raw_reads_connected_2.fastq.gz > !{sample_id}_cutadapt_output.txt
-	'''
-}
-
-
 
 
 
