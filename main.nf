@@ -110,7 +110,7 @@ workflow {
 			.join(SOMVC_VARDICT.out.vardict_output, by: 0)
 	//SOMATIC_COMBINER(channel_all_vc)
 	
-	//CONPAIR_CONTAMINATION(channel_sample_match_mapped, INDEX_REFERENCE.out.reference_genome)
+	CONPAIR_CONTAMINATION(channel_sample_match_mapped, INDEX_REFERENCE.out.reference_genome)
 	
 	
 	//VARIANT_CALLING_STATS(SOMATIC_COMBINER.out.somatic_combiner_vcf, params.num_threads); 

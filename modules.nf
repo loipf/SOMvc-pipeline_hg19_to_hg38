@@ -35,7 +35,7 @@ process INDEX_REFERENCE {
 
 process BAM_TO_FASTQ_PREPROCESS { 
 	tag "$sample_id"
-	//cache false
+	cache false
 	
 	input:
 		tuple val(sample_id), path(bam_file)
@@ -79,8 +79,8 @@ process CREATE_BWA_INDEX {
 
 process MAPPING_BWA { 
 	tag "$sample_id"
-	publishDir "$params.data_dir/reads_mapped", mode: 'copy', saveAs: { filename -> "${sample_id}/$filename" }
-	//cache false
+	publishDir "$params.data_dir/reads_mapped", mode: 'copy', pattern:"*_stats.txt", saveAs: { filename -> "${sample_id}/$filename" }
+	cache false
 
 	input:
 		tuple val(sample_id), path(reads_prepro_1), path(reads_prepro_2) 
