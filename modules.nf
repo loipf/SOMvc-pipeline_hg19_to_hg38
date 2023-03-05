@@ -35,7 +35,7 @@ process INDEX_REFERENCE {
 
 process BAM_TO_FASTQ_PREPROCESS { 
 	tag "$sample_id"
-	cache false
+	//cache false
 	
 	input:
 		tuple val(sample_id), path(bam_file)
@@ -83,28 +83,31 @@ process MAPPING_BWA {
 	//cache false
 
 	input:
-		tuple val(sample_id), path(reads_prepro) 
+		tuple val(sample_id), path(reads_prepro_1), path(reads_prepro_2) 
 		val num_threads
 		path reference_genome
 		path bwa_index  // to ensure index is created
+		val file_name_extension
 
 
 	output:
-		tuple val(sample_id), path("${sample_id}.bam"), path("${sample_id}.bam.bai"), emit: reads_mapped
+		tuple val(sample_id), path("${sample_id}${file_name_extension}.bam"), path("${sample_id}${file_name_extension}.bam.bai"), emit: reads_mapped
 		path "*", emit: all
 
 
 	shell:
 	'''
-	bwa mem -Y -R "@RG\\tID:!{sample_id}\\tSM:!{sample_id}" -t !{num_threads} -K 100000000 !{reference_genome} !{reads_prepro} \
+	sample_name=!{sample_id}!{file_name_extension}
+	
+	bwa mem -Y -R "@RG\\tID:$sample_name\\tSM:$sample_name" -t !{num_threads} -K 100000000 !{reference_genome} !{reads_prepro_1} !{reads_prepro_2}\
 	| samtools view -@ !{num_threads} -h -b -u - \
 	| samtools sort -n -@ !{num_threads} - \
 	| samtools fixmate -m -@ !{num_threads} - - \
 	| samtools sort -@ !{num_threads} - \
-	| samtools markdup -@ !{num_threads} -f !{sample_id}_markdup_stats.txt - !{sample_id}.bam
+	| samtools markdup -@ !{num_threads} -f  $sample_name"_markdup_stats.txt" - $sample_name".bam"
 
-	samtools index -b -@ !{num_threads} !{sample_id}.bam
-	samtools stats -@ !{num_threads} !{sample_id}.bam > !{sample_id}_stats.txt
+	samtools index -b -@ !{num_threads}  $sample_name".bam"
+	samtools stats -@ !{num_threads}  $sample_name".bam" >  $sample_name"_stats.txt"
 
 	'''
 }
@@ -120,7 +123,7 @@ process SOMVC_LOFREQ {
 	publishDir "$params.data_dir/vc_caller/lofreq", mode: 'copy', saveAs: { filename -> "${sample_id}/$filename" }
 
 	input:
-		tuple val(sample_id), path(normal_file), path(tumor_file), path(normal_file_index), path(tumor_file_index) 
+		tuple val(sample_id), path(normal_file), path(normal_file_index), path(tumor_file), path(tumor_file_index) 
 		path reference_genome
 		path bed_file
 		val num_threads
@@ -158,7 +161,7 @@ process SOMVC_MUTECT2 {
 	publishDir "$params.data_dir/vc_caller/mutect2", mode: 'copy', saveAs: { filename -> "${sample_id}/$filename" }
 
 	input:
-		tuple val(sample_id), path(normal_file), path(tumor_file), path(normal_file_index), path(tumor_file_index) 
+		tuple val(sample_id), path(normal_file), path(normal_file_index), path(tumor_file), path(tumor_file_index) 
 		path reference_genome
 		path bed_file
 		val num_threads
@@ -196,7 +199,7 @@ process SOMVC_STRELKA {
 	publishDir "$params.data_dir/vc_caller/strelka", mode: 'copy', saveAs: { filename -> "${sample_id}/$filename" }
 
 	input:
-		tuple val(sample_id), path(normal_file), path(tumor_file), path(normal_file_index), path(tumor_file_index) 
+		tuple val(sample_id), path(normal_file), path(normal_file_index), path(tumor_file), path(tumor_file_index) 
 		path reference_genome
 		path bed_file
 		val num_threads
@@ -232,7 +235,7 @@ process SOMVC_VARDICT {
 	publishDir "$params.data_dir/vc_caller/vardict", mode: 'copy', saveAs: { filename -> "${sample_id}/$filename" }
 
 	input:
-		tuple val(sample_id), path(normal_file), path(tumor_file), path(normal_file_index), path(tumor_file_index) 
+		tuple val(sample_id), path(normal_file), path(normal_file_index), path(tumor_file), path(tumor_file_index) 
 		path reference_genome
 		path bed_file
 		val num_threads
@@ -293,7 +296,7 @@ process CONPAIR_CONTAMINATION {
 	publishDir "$params.data_dir/conpair", mode: 'copy', saveAs: { filename -> "${sample_id}/$filename" }
 
 	input:
-		tuple val(sample_id), path(normal_file), path(tumor_file), path(normal_file_index), path(tumor_file_index) 
+		tuple val(sample_id), path(normal_file), path(normal_file_index), path(tumor_file), path(tumor_file_index) 
 		path reference_genome
 
 	output:
