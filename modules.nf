@@ -49,9 +49,9 @@ process BAM_TO_FASTQ_PREPROCESS {
 	'''
 	
 	### extract reads from bam files
-	samtools sort -@ !{num_threads} -n -o sorted_n.bam !{bam_file} 
-	bedtools bamtofastq -i sorted_n.bam -fq !{sample_id}_reads_1.fastq -fq2 !{sample_id}_reads_2.fastq
-
+	samtools sort -@ !{num_threads} -n !{bam_file} | samtools fastq -@ !{num_threads} -1 !{sample_id}_reads_1.fastq -2 !{sample_id}_reads_2.fastq -0 /dev/null -s /dev/null -n -
+	
+	### cutadapt v1.18 has no parallelization yet - but python version needed for strelka
 	cutadapt --max-n 0.1 --discard-trimmed --pair-filter=any --minimum-length 10 -o !{sample_id}_prepro_1.fastq.gz -p !{sample_id}_prepro_2.fastq.gz !{sample_id}_reads_1.fastq !{sample_id}_reads_2.fastq > !{sample_id}_cutadapt_output.txt
 
 	'''
