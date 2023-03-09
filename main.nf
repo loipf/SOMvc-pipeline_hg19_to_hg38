@@ -108,10 +108,9 @@ workflow {
 			.join(SOMVC_MUTECT2.out.mutect2_output, by: 0)
 			.join(SOMVC_STRELKA.out.strelka_output, by: 0)
 			.join(SOMVC_VARDICT.out.vardict_output, by: 0)
-	//SOMATIC_COMBINER(channel_all_vc)
+	SOMATIC_COMBINER(channel_all_vc)
 	
 	CONPAIR_CONTAMINATION(channel_sample_match_mapped, INDEX_REFERENCE.out.reference_genome)
-	
 	
 	//VARIANT_CALLING_STATS(SOMATIC_COMBINER.out.somatic_combiner_vcf, params.num_threads); 
 	//MERGE_VCF(SOMATIC_COMBINER.out.somatic_combiner_vcf.collect{[it[1],it[2]]}, params.num_threads) 

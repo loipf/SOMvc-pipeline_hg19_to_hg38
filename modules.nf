@@ -339,8 +339,8 @@ process VARIANT_CALLING_STATS {
 
 	shell:
 	'''
-	bcftools stats -f ADJ_PASS -s !{sample_id}_normal --threads !{num_threads} !{vcf_file} > !{sample_id}_normal_ADJ_PASS_vcfstats.txt
-	bcftools stats -f ADJ_PASS -s !{sample_id}_tumor --threads !{num_threads} !{vcf_file} > !{sample_id}_tumor_ADJ_PASS_vcfstats.txt
+	bcftools stats -f PASS -s !{sample_id}_normal --threads !{num_threads} !{vcf_file} > !{sample_id}_normal_PASS_vcfstats.txt
+	bcftools stats -f PASS -s !{sample_id}_tumor --threads !{num_threads} !{vcf_file} > !{sample_id}_tumor_PASS_vcfstats.txt
 	'''
 }
 
